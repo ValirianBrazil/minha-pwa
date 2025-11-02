@@ -1,1 +1,476 @@
 <link rel="manifest" href="/manifest.json">
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cálculo de Custo de Obra</title>
+
+    <!-- Fontes e Bibliotecas -->
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode.js@1.0.0/lib/qrcode.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #4a6baf;
+            --light: #f9f9f9;
+            --border: #ccc;
+            --bg-field: #e9e9e9;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Open Sans', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: var(--light);
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 30px;
+        }
+        .form-group { margin-bottom: 18px; }
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .form-row > div { flex: 1; min-width: 200px; }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        input[type="number"] { -moz-appearance: textfield; }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .display-field {
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            background: var(--bg-field);
+            font-weight: 600;
+        }
+        .hyperlink {
+            margin-left: 8px;
+            color: var(--primary);
+            font-size: 0.9em;
+            text-decoration: none;
+        }
+        .separator {
+            border-top: 1px solid var(--border);
+            margin: 25px 0;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary);
+            margin: 20px 0 10px;
+        }
+        button {
+            display: block;
+            margin: 30px auto;
+            padding: 12px 30px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        button:hover { background: #3a5590; }
+        .contact {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 14px;
+            color: #555;
+        }
+        @media (max-width: 600px) {
+            .form-row > div { flex: 1 1 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Cálculo de Custo de Obra</h1>
+
+    <!-- === FORMULÁRIO === -->
+    <div class="form-group">
+        <label for="destinacao">Destinação</label>
+        <select id="destinacao">
+            <option value="">Selecione</option>
+            <option value="Unifamiliar">Unifamiliar</option>
+            <option value="Multifamiliar">Multifamiliar</option>
+            <option value="Comercial Salas e Lojas">Comercial Salas e Lojas</option>
+            <option value="Galpão Industrial">Galpão Industrial</option>
+            <option value="Conjunto Habitacional Popular">Conjunto Habitacional Popular</option>
+            <option value="Casa Popular">Casa Popular</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="area_construida">Área Construída (m²) *</label>
+        <input type="number" id="area_construida" min="0" step="0.01" placeholder="0,00" required>
+    </div>
+
+    <div class="form-row">
+        <div>
+            <label for="area_complementar_coberta">Área Complementar (coberta m²)</label>
+            <input type="number" id="area_complementar_coberta" min="0" step="0.01" placeholder="0,00">
+        </div>
+        <div>
+            <label for="area_complementar_descoberta">Área Complementar (descoberta m²)</label>
+            <input type="number" id="area_complementar_descoberta" min="0" step="0.01" placeholder="0,00">
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div>
+            <label>Área Total (m²)</label>
+            <div class="display-field" id="area_total">0,00</div>
+        </div>
+        <div>
+            <label>Percentual de Equivalência</label>
+            <div class="display-field" id="percentual_equivalencia">0%</div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Área Equivalente</label>
+        <div class="display-field" id="area_equivalente">0,00</div>
+    </div>
+
+    <div class="form-row">
+        <div>
+            <label for="vau">VAU * <a href="https://docs.google.com/spreadsheets/d/1PBZ_WarubufBurQA714oggFkLkXRtSN0Vzg_KfjdIFs/edit?gid=0#gid=0" target="_blank" class="hyperlink">Link</a></label>
+            <input type="text" id="vau" placeholder="R$ 0,00" required>
+        </div>
+        <div>
+            <label>Custo de Obra por Destinação</label>
+            <div class="display-field" id="custo_obra">R$ 0,00</div>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div>
+            <label for="estado">Estado *</label>
+            <select id="estado" required>
+                <option value="">Selecione</option>
+                <option value="AC">AC</option><option value="AL">AL</option><option value="AM">AM</option>
+                <option value="AP">AP</option><option value="BA">BA</option><option value="CE">CE</option>
+                <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+                <option value="MA">MA</option><option value="MG">MG</option><option value="MS">MS</option>
+                <option value="MT">MT</option><option value="PA">PA</option><option value="PB">PB</option>
+                <option value="PE">PE</option><option value="PI">PI</option><option value="PR">PR</option>
+                <option value="RJ">RJ</option><option value="RN">RN</option><option value="RO">RO</option>
+                <option value="RR">RR</option><option value="RS">RS</option><option value="SC">SC</option>
+                <option value="SE">SE</option><option value="SP">SP</option><option value="TO">TO</option>
+            </select>
+        </div>
+        <div>
+            <label for="concreto_usinado">Concreto Usinado</label>
+            <select id="concreto_usinado">
+                <option value="Não">Não</option>
+                <option value="Sim">Sim</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div>
+            <label>Abatimento Concreto</label>
+            <div class="display-field" id="abatimento_concreto">R$ 0,00</div>
+        </div>
+        <div>
+            <label>Fator Social</label>
+            <div class="display-field" id="fator_social">0%</div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>RMT (Remuneração de Mão de Obra Total)</label>
+        <div class="display-field" id="rmt">R$ 0,00</div>
+    </div>
+
+    <div class="form-group">
+        <label>Valor do Débito calculado pela RECEITA FEDERAL</label>
+        <div class="display-field" id="base_calculo_rmt">R$ 0,00</div>
+    </div>
+
+    <div class="separator"></div>
+    <div class="section-title">Aplicação do Fator de Ajuste</div>
+
+    <div class="form-group">
+        <label>Fator de Ajuste</label>
+        <div class="display-field" id="fator_ajuste">0%</div>
+    </div>
+
+    <div class="form-group">
+        <label>RMT para o FA</label>
+        <div class="display-field" id="rmt_fa">R$ 0,00</div>
+    </div>
+
+    <div class="form-group">
+        <label>Valor a ser pago com Desconto</label>
+        <div class="display-field" id="cpp">R$ 0,00</div>
+    </div>
+
+    <button id="gerar_pdf">Gerar PDF</button>
+
+    <div class="contact">
+        E-Mail: contatoinssobra@gmail.com<br>
+        Telefone: (35) 99911-9922
+    </div>
+
+    <!-- === SCRIPT COMPLETO === -->
+    <script>
+        const { jsPDF } = window.jspdf;
+
+        // === TABELA DE ABATIMENTO (COMPLETA) ===
+        const abatementTable = {
+            AC: { Unifamiliar: 7.43, Multifamiliar: 9.61, Conjunto: 4.69, Comercial: 13.33, Industrial: 4.52, CasaPopular: 4.69 },
+            AL: { Unifamiliar: 6.11, Multifamiliar: 8.12, Conjunto: 3.98, Comercial: 11.35, Industrial: 3.82, CasaPopular: 3.98 },
+            AM: { Unifamiliar: 7.43, Multifamiliar: 9.61, Conjunto: 4.69, Comercial: 13.33, Industrial: 4.52, CasaPopular: 4.69 },
+            AP: { Unifamiliar: 7.48, Multifamiliar: 9.41, Conjunto: 4.88, Comercial: 12.93, Industrial: 4.38, CasaPopular: 4.88 },
+            BA: { Unifamiliar: 5.53, Multifamiliar: 7.46, Conjunto: 3.73, Comercial: 10.31, Industrial: 3.62, CasaPopular: 3.73 },
+            CE: { Unifamiliar: 5.72, Multifamiliar: 7.69, Conjunto: 3.70, Comercial: 10.69, Industrial: 3.44, CasaPopular: 3.70 },
+            DF: { Unifamiliar: 5.24, Multifamiliar: 7.06, Conjunto: 3.53, Comercial: 9.62, Industrial: 3.43, CasaPopular: 3.53 },
+            ES: { Unifamiliar: 5.15, Multifamiliar: 6.85, Conjunto: 3.33, Comercial: 9.45, Industrial: 3.26, CasaPopular: 3.33 },
+            GO: { Unifamiliar: 5.79, Multifamiliar: 7.62, Conjunto: 3.88, Comercial: 10.27, Industrial: 3.60, CasaPopular: 3.88 },
+            MA: { Unifamiliar: 6.94, Multifamiliar: 8.73, Conjunto: 4.18, Comercial: 12.06, Industrial: 4.07, CasaPopular: 4.18 },
+            MG: { Unifamiliar: 4.68, Multifamiliar: 6.22, Conjunto: 3.15, Comercial: 8.66, Industrial: 3.05, CasaPopular: 3.15 },
+            MS: { Unifamiliar: 6.74, Multifamiliar: 8.74, Conjunto: 4.34, Comercial: 12.20, Industrial: 4.28, CasaPopular: 4.34 },
+            MT: { Unifamiliar: 6.22, Multifamiliar: 8.01, Conjunto: 4.02, Comercial: 10.96, Industrial: 3.89, CasaPopular: 4.02 },
+            PA: { Unifamiliar: 7.58, Multifamiliar: 9.77, Conjunto: 4.91, Comercial: 13.48, Industrial: 4.45, CasaPopular: 4.91 },
+            PB: { Unifamiliar: 6.32, Multifamiliar: 8.58, Conjunto: 4.12, Comercial: 11.81, Industrial: 3.81, CasaPopular: 4.12 },
+            PE: { Unifamiliar: 5.12, Multifamiliar: 6.89, Conjunto: 3.51, Comercial: 9.74, Industrial: 3.42, CasaPopular: 3.51 },
+            PI: { Unifamiliar: 5.33, Multifamiliar: 7.16, Conjunto: 3.53, Comercial: 10.00, Industrial: 3.30, CasaPopular: 3.53 },
+            PR: { Unifamiliar: 4.91, Multifamiliar: 6.50, Conjunto: 3.18, Comercial: 8.78, Industrial: 3.08, CasaPopular: 3.18 },
+            RJ: { Unifamiliar: 4.94, Multifamiliar: 6.52, Conjunto: 3.20, Comercial: 9.02, Industrial: 3.08, CasaPopular: 3.20 },
+            RN: { Unifamiliar: 5.96, Multifamiliar: 7.62, Conjunto: 4.01, Comercial: 10.41, Industrial: 3.63, CasaPopular: 4.01 },
+            RO: { Unifamiliar: 6.22, Multifamiliar: 8.01, Conjunto: 4.02, Comercial: 10.96, Industrial: 3.89, CasaPopular: 4.02 },
+            RR: { Unifamiliar: 7.43, Multifamiliar: 9.61, Conjunto: 4.69, Comercial: 13.33, Industrial: 4.52, CasaPopular: 4.69 },
+            RS: { Unifamiliar: 5.01, Multifamiliar: 6.54, Conjunto: 3.25, Comercial: 8.77, Industrial: 3.23, CasaPopular: 3.25 },
+            SC: { Unifamiliar: 4.79, Multifamiliar: 6.19, Conjunto: 2.93, Comercial: 8.36, Industrial: 2.87, CasaPopular: 2.93 },
+            SE: { Unifamiliar: 6.97, Multifamiliar: 9.05, Conjunto: 4.34, Comercial: 12.50, Industrial: 4.18, CasaPopular: 4.34 },
+            SP: { Unifamiliar: 4.90, Multifamiliar: 6.35, Conjunto: 3.15, Comercial: 8.69, Industrial: 2.96, CasaPopular: 3.15 },
+            TO: { Unifamiliar: 5.33, Multifamiliar: 7.16, Conjunto: 3.53, Comercial: 10.00, Industrial: 3.30, CasaPopular: 3.53 }
+        };
+
+        const destinacaoMap = {
+            "Unifamiliar": "Unifamiliar",
+            "Multifamiliar": "Multifamiliar",
+            "Comercial Salas e Lojas": "Comercial",
+            "Galpão Industrial": "Industrial",
+            "Conjunto Habitacional Popular": "Conjunto",
+            "Casa Popular": "CasaPopular"
+        };
+
+        // === MÁSCARA PARA VAU ===
+        const vauInput = document.getElementById('vau');
+        vauInput.addEventListener('input', function(e) {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v.length > 12) v = v.slice(0, 12);
+            const num = parseInt(v || 0) / 100;
+            e.target.value = num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        });
+
+        function getVauValue() {
+            const raw = vauInput.value.replace(/\D/g, '');
+            return parseFloat(raw) / 100 || 0;
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+        }
+
+        // === VALIDAÇÃO ===
+        function validateForm() {
+            const required = ['destinacao', 'area_construida', 'vau', 'estado'];
+            for (const id of required) {
+                const field = document.getElementById(id);
+                if (!field.value.trim() || (id === 'vau' && getVauValue() === 0)) {
+                    const label = field.previousElementSibling?.textContent || '';
+                    alert(`Preencha o campo obrigatório: ${label}`);
+                    field.focus();
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // === CÁLCULO EM TEMPO REAL ===
+        document.querySelectorAll('input, select').forEach(el => el.addEventListener('input', calculate));
+
+        function calculate() {
+            const d = document.getElementById('destinacao').value;
+            const a1 = parseFloat(document.getElementById('area_construida').value) || 0;
+            const a2 = parseFloat(document.getElementById('area_complementar_coberta').value) || 0;
+            const a3 = parseFloat(document.getElementById('area_complementar_descoberta').value) || 0;
+            const total = a1 + a2 + a3;
+            document.getElementById('area_total').textContent = total.toFixed(2);
+
+            let p = 0;
+            if (d === 'Unifamiliar') p = total <= 1000 ? 89 : 85;
+            else if (d === 'Multifamiliar') p = total <= 1000 ? 90 : 86;
+            else if (d === 'Comercial Salas e Lojas') p = total < 3000 ? 86 : 83;
+            else if (d === 'Galpão Industrial') p = 95;
+            else if (d === 'Conjunto Habitacional Popular' || d === 'Casa Popular') p = 98;
+            document.getElementById('percentual_equivalencia').textContent = `${p}%`;
+
+            const equiv = total * (p / 100);
+            document.getElementById('area_equivalente').textContent = equiv.toFixed(2);
+
+            const vau = getVauValue();
+            const custo = equiv * vau;
+            document.getElementById('custo_obra').textContent = formatCurrency(custo);
+
+            const estado = document.getElementById('estado').value;
+            const concreto = document.getElementById('concreto_usinado').value;
+            let abat = 0;
+            if (concreto === 'Sim' && estado && d) {
+                const key = destinacaoMap[d];
+                const perc = abatementTable[estado]?.[key] || 0;
+                abat = (custo * 0.05) * (perc / 100);
+            }
+            document.getElementById('abatimento_concreto').textContent = formatCurrency(abat);
+
+            const fs = total < 100 ? 20 : total <= 200 ? 40 : total <= 300 ? 55 : total <= 400 ? 70 : 90;
+            document.getElementById('fator_social').textContent = `${fs}%`;
+
+            const rmt = (custo * (fs / 100) * 0.20) - abat;
+            document.getElementById('rmt').textContent = formatCurrency(rmt);
+            document.getElementById('base_calculo_rmt').textContent = formatCurrency(rmt * 0.368);
+
+            const fa = total < 350 ? 50 : 70;
+            document.getElementById('fator_ajuste').textContent = `${fa}%`;
+
+            const rmt_fa = rmt * (fa / 100);
+            document.getElementById('rmt_fa').textContent = formatCurrency(rmt_fa);
+            document.getElementById('cpp').textContent = formatCurrency(rmt_fa * 0.20);
+        }
+
+        // === GERAÇÃO DO PDF (100% FUNCIONAL) ===
+        document.getElementById('gerar_pdf').addEventListener('click', async () => {
+    if (!validateForm()) return;
+
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+    // 1. Carregar fonte Open Sans (com fallback)
+    try {
+        const resp = await fetch('https://fonts.gstatic.com/s/opensans/v40/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsjZ0B4gaVc.ttf');
+        const buffer = await resp.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        doc.addFileToVFS('OpenSans.ttf', base64);
+        doc.addFont('OpenSans.ttf', 'OpenSans', 'normal');
+        doc.setFont('OpenSans');
+    } catch (e) {
+        console.warn('Fonte Open Sans não carregada, usando Helvetica');
+        doc.setFont('helvetica');
+    }
+
+    // 2. Gerar QR Code (CORRIGIDO)
+    const whatsappUrl = 'https://wa.me/5535999119922?text=Olá, gostaria de mais informações sobre o cálculo de INSS de obra.';
+    let qrImg = '';
+    try {
+        qrImg = await generateQR(whatsappUrl);
+    } catch (e) {
+        console.error('Erro ao gerar QR Code:', e);
+        qrImg = ''; // Continua sem QR se falhar
+    }
+
+    // 3. Montar PDF
+    let y = 15;
+
+    // Logo
+    const logoUrl = 'https://via.placeholder.com/150x60/4a6baf/ffffff?text=LOGO';
+    try { doc.addImage(logoUrl, 'PNG', 70, y, 70, 20); } catch (e) {}
+    y += 28;
+
+    // Título
+    doc.setFontSize(12);
+    doc.setTextColor(74, 107, 175);
+    doc.text('Cálculo de Custo de Obra', 105, y, { align: 'center' });
+    y += 15;
+
+    // Tabela
+    const rows = [
+        ['Destinação', document.getElementById('destinacao').value],
+        ['Área Construída (m²)', document.getElementById('area_construida').value],
+        ['Área Complementar (coberta m²)', document.getElementById('area_complementar_coberta').value || '0'],
+        ['Área Complementar (descoberta m²)', document.getElementById('area_complementar_descoberta').value || '0'],
+        ['Área Total (m²)', document.getElementById('area_total').textContent],
+        ['Percentual de Equivalência', document.getElementById('percentual_equivalencia').textContent],
+        ['Área Equivalente', document.getElementById('area_equivalente').textContent],
+        ['VAU', document.getElementById('vau').value],
+        ['Custo de Obra', document.getElementById('custo_obra').textContent],
+        ['Estado', document.getElementById('estado').value],
+        ['Concreto Usinado', document.getElementById('concreto_usinado').value],
+        ['Abatimento Concreto', document.getElementById('abatimento_concreto').textContent],
+        ['Fator Social', document.getElementById('fator_social').textContent],
+        ['RMT', document.getElementById('rmt').textContent],
+        ['INSS devido para a RF', document.getElementById('base_calculo_rmt').textContent],
+        ['Fator de Ajuste', document.getElementById('fator_ajuste').textContent],
+        ['RMT para o FA', document.getElementById('rmt_fa').textContent],
+        ['Valor a ser pago com Desconto', document.getElementById('cpp').textContent],
+    ];
+
+    const rowH = 8, col1W = 80, col2W = 100, tableW = col1W + col2W;
+    const startY = y;
+
+    doc.setFillColor(74, 107, 175); doc.setTextColor(255);
+    doc.rect(10, y, tableW, rowH, 'F');
+    doc.text('Campo', 12, y + 5.5); doc.text('Valor', 92, y + 5.5); y += rowH;
+
+    doc.setTextColor(0);
+    rows.forEach((row, i) => {
+        if (y > 250) { doc.addPage(); y = 15; }
+        if (i % 2) { doc.setFillColor(245, 245, 245); doc.rect(10, y, tableW, rowH, 'F'); }
+        doc.rect(10, y, col1W, rowH); doc.rect(10 + col1W, y, col2W, rowH);
+        doc.text(row[0], 12, y + 5.5); doc.text(row[1], 92, y + 5.5);
+        y += rowH;
+    });
+    doc.setDrawColor(74, 107, 175); doc.rect(10, startY, tableW, y - startY);
+
+    // QR + Contato
+    if (qrImg) {
+        doc.addImage(qrImg, 'PNG', 150, 220, 40, 40);
+    }
+    
+    doc.setFontSize(9); doc.setTextColor(0);
+    doc.text('E-Mail: contatoinssobra@gmail.com', 150, 270);
+    doc.text('Telefone: (35) 99911-9922', 150, 275);
+    ;
+    doc.setFontSize(8); doc.setTextColor(100);
+    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 105, 290, { align: 'center' });
+
+    // Salvar PDF
+    doc.save('calculo_custo_obra.pdf');
+});
+
+// FUNÇÃO PARA GERAR QR CODE (OBRIGATÓRIA)
+function generateQR(text) {
+    return new Promise((resolve, reject) => {
+        const canvas = document.createElement('canvas');
+        QRCode.toCanvas(canvas, text, { width: 300, errorCorrectionLevel: 'H' }, (error) => {
+            if (error) reject(error);
+            else resolve(canvas.toDataURL('image/png'));
+        });
+    });
+}
+º
+    </script>
+</body>
+</html>
